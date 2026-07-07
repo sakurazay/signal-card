@@ -100,6 +100,13 @@
       </select>
     </div>
     <div class="setup-row">
+      <select id="timeframe" style="flex:1;">
+        <option value="1min">M1</option>
+        <option value="5min">M5</option>
+        <option value="15min" selected>M15</option>
+        <option value="1h">H1</option>
+        <option value="4h">H4</option>
+      </select>
       <button class="btn" id="startBtn">Start Live</button>
       <button class="btn hidden" id="stopBtn" style="background:var(--sl-dim);color:var(--sl);border-color:rgba(255,92,108,0.3);">Stop</button>
     </div>
@@ -158,6 +165,7 @@ function loadSavedSettings(){
       const saved = JSON.parse(raw);
       if(saved.apiKey) document.getElementById('apiKey').value = saved.apiKey;
       if(saved.symbol) document.getElementById('symbol').value = saved.symbol;
+      if(saved.timeframe) document.getElementById('timeframe').value = saved.timeframe;
       if(saved.apiKey){
         status.textContent = 'Setting tersimpan dijumpai. Klik "Start Live" untuk mula.';
         status.className = 'status ok';
@@ -173,8 +181,9 @@ function loadSavedSettings(){
 function saveSettings(){
   const apiKey = document.getElementById('apiKey').value.trim();
   const symbol = document.getElementById('symbol').value;
+  const timeframe = document.getElementById('timeframe').value;
   try{
-    localStorage.setItem('signalCardSettings', JSON.stringify({apiKey, symbol}));
+    localStorage.setItem('signalCardSettings', JSON.stringify({apiKey, symbol, timeframe}));
   }catch(e){
     console.error('Gagal simpan setting:', e);
   }
@@ -213,11 +222,13 @@ function fmt(n, decimals){ return n.toFixed(decimals); }
 async function fetchAndUpdate(){
   const key = document.getElementById('apiKey').value.trim();
   const symbol = document.getElementById('symbol').value;
+  const timeframe = document.getElementById('timeframe').value;
+  const tfLabel = document.getElementById('timeframe').selectedOptions[0].textContent;
   const status = document.getElementById('statusMsg');
   if(!key){ status.textContent = 'Sila masukkan API key dulu.'; status.className='status err'; return; }
 
   try{
-    const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=15min&outputsize=60&apikey=${key}`;
+    const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${timeframe}&outputsize=60&apikey=${key}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -264,7 +275,7 @@ async function fetchAndUpdate(){
       entry = currentPrice; sl = null; tp = null; zoneLow = null; zoneHigh = null;
     }
 
-    document.getElementById('pairLabel').innerHTML = symbol + '<small>Live · 15min</small>';
+    document.getElementById('pairLabel').innerHTML = symbol + '<small>Live · ' + tfLabel + '</small>';
     document.getElementById('dirBadge').textContent = direction;
     document.getElementById('dirBadge').className = 'dir ' + dirClass;
 
