@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Signal Card">
+<title>Live Signal Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E13; --panel:#11161D; --line:#232B36;
+    --text:#E7ECF2; --muted:#6E7A8A;
+    --buy:#22D3A0; --buy-dim:#0F2E27;
+    --sl:#FF5C6C; --sl-dim:#331419;
+    --amber:#F2B84B; --amber-dim:#33280F;
+    --neutral:#8B93A0; --neutral-dim:#1C232C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:radial-gradient(circle at 20% 0%, #10161f 0%, var(--bg) 55%);
+    font-family:'Space Grotesk',sans-serif; color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:32px 16px;
+  }
+  .card{
+    width:100%; max-width:420px; background:var(--panel);
+    border:1px solid var(--line); border-radius:18px; overflow:hidden;
+    box-shadow:0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+  .setup{ padding:18px 22px; border-bottom:1px solid var(--line); }
+  .setup-row{ display:flex; gap:8px; margin-bottom:8px; }
+  .setup input, .setup select{
+    flex:1; background:#0D1319; border:1px solid var(--line); color:var(--text);
+    font-family:'JetBrains Mono',monospace; font-size:12px; padding:9px 10px;
+    border-radius:8px; outline:none;
+  }
+  .setup input::placeholder{color:#4A5563;}
+  .btn{
+    background:var(--buy-dim); color:var(--buy); border:1px solid rgba(34,211,160,0.3);
+    font-family:'JetBrains Mono',monospace; font-weight:600; font-size:12px;
+    padding:9px 16px; border-radius:8px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{background:rgba(34,211,160,0.18);}
+  .status{ font-size:11px; color:var(--muted); margin-top:2px; min-height:14px; }
+  .status.err{color:var(--sl);}
+  .status.ok{color:var(--buy);}
+
+  .head{ padding:18px 22px 14px; display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); }
+  .pair{ font-size:20px; font-weight:700; }
+  .pair small{ display:block; font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+  .dir{ font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; display:flex; align-items:center; gap:6px; }
+  .dir::before{ content:""; width:6px;height:6px;border-radius:50%; }
+  .dir.buy{ background:var(--buy-dim); color:var(--buy); }
+  .dir.buy::before{ background:var(--buy); }
+  .dir.sell{ background:var(--sl-dim); color:var(--sl); }
+  .dir.sell::before{ background:var(--sl); }
+  .dir.wait{ background:var(--neutral-dim); color:var(--neutral); }
+  .dir.wait::before{ background:var(--neutral); }
+
+  .rows{ padding:6px 22px 4px; }
+  .row{ display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }
+  .row:last-child{border-bottom:none;}
+  .label{ font-size:13px; color:var(--muted); font-weight:500; }
+  .label small{ display:block; font-size:10px; color:#4A5563; margin-top:1px; font-weight:400; }
+  .value{ font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; text-align:right; }
+  .value.buy{color:var(--buy);} .value.sl{color:var(--sl);} .value.neutral{color:var(--neutral);}
+
+  .momentum-wrap{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; width:150px; }
+  .momentum-label{ display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; }
+  .momentum-bar{ width:100%; height:6px; background:var(--line); border-radius:99px; overflow:hidden; position:relative; }
+  .momentum-fill{ position:absolute; left:0; top:0; height:100%; border-radius:99px; transition:width 0.4s ease, background 0.4s ease; }
+
+  .zone-wrap{ padding:16px 22px 18px; }
+  .zone-title{ font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:10px; font-weight:600; }
+  .zone-box{ background:var(--amber-dim); border:1px dashed rgba(242,184,75,0.4); border-radius:12px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; }
+  .zone-range{ font-family:'JetBrains Mono',monospace; font-weight:600; font-size:14px; color:var(--amber); }
+  .zone-note{ font-size:11px; color:#B8935A; font-weight:500; }
+
+  .footer{ padding:10px 22px 18px; font-size:10.5px; color:#3E4652; text-align:center; letter-spacing:0.3px; display:flex; justify-content:center; align-items:center; gap:6px; }
+  .pulse{ width:6px; height:6px; border-radius:50%; background:var(--buy); animation:pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="setup">
+    <div class="setup-row">
+      <input id="apiKey" type="password" placeholder="TwelveData API key">
+      <select id="symbol">
+        <option value="XAU/USD">XAU/USD (Gold)</option>
+        <option value="EUR/USD">EUR/USD</option>
+        <option value="GBP/USD">GBP/USD</option>
+        <option value="USD/JPY">USD/JPY</option>
+        <option value="AUD/USD">AUD/USD</option>
+      </select>
+    </div>
+    <div class="setup-row">
+      <button class="btn" id="startBtn">Start Live</button>
+      <button class="btn hidden" id="stopBtn" style="background:var(--sl-dim);color:var(--sl);border-color:rgba(255,92,108,0.3);">Stop</button>
+    </div>
+    <div class="status" id="statusMsg">API key you akan disimpan kekal, tak payah taip lagi lepas ni.</div>
+    <div style="margin-top:6px;">
+      <a href="#" id="clearBtn" style="font-size:10.5px;color:#4A5563;text-decoration:underline;">Padam setting tersimpan</a>
+    </div>
+  </div>
+
+  <div class="head">
+    <div class="pair" id="pairLabel">—<small>Belum start</small></div>
+    <div class="dir wait" id="dirBadge">WAIT</div>
+  </div>
+
+  <div class="rows">
+    <div class="row">
+      <div class="label">Entry Point<small>Harga semasa</small></div>
+      <div class="value" id="entryVal">—</div>
+    </div>
+    <div class="row">
+      <div class="label">Stop Loss<small>SL · 1.5× ATR</small></div>
+      <div class="value sl" id="slVal">—</div>
+    </div>
+    <div class="row">
+      <div class="label">Take Profit<small>TP · RR 1:2</small></div>
+      <div class="value buy" id="tpVal">—</div>
+    </div>
+    <div class="row">
+      <div class="label">Momentum<small>RSI(14)</small></div>
+      <div class="momentum-wrap">
+        <div class="momentum-label" id="momLabel">—</div>
+        <div class="momentum-bar"><div class="momentum-fill" id="momFill" style="width:0%;background:var(--neutral);"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zone-wrap">
+    <div class="zone-title">Reentry Zone</div>
+    <div class="zone-box">
+      <div class="zone-range" id="zoneVal">—</div>
+      <div class="zone-note">Pullback 0.5–1× ATR</div>
+    </div>
+  </div>
+
+  <div class="footer" id="footerMsg">Belum live</div>
+</div>
+
+<script>
+let intervalId = null;
+
+function loadSavedSettings(){
+  const status = document.getElementById('statusMsg');
+  try{
+    const raw = localStorage.getItem('signalCardSettings');
+    if(raw){
+      const saved = JSON.parse(raw);
+      if(saved.apiKey) document.getElementById('apiKey').value = saved.apiKey;
+      if(saved.symbol) document.getElementById('symbol').value = saved.symbol;
+      if(saved.apiKey){
+        status.textContent = 'Setting tersimpan dijumpai. Klik "Start Live" untuk mula.';
+        status.className = 'status ok';
+      }
+    } else {
+      status.textContent = 'Belum ada setting tersimpan. Masukkan API key dan Start Live.';
+    }
+  }catch(e){
+    status.textContent = 'Storan tak tersedia dalam mod ni.';
+  }
+}
+
+function saveSettings(){
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const symbol = document.getElementById('symbol').value;
+  try{
+    localStorage.setItem('signalCardSettings', JSON.stringify({apiKey, symbol}));
+  }catch(e){
+    console.error('Gagal simpan setting:', e);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadSavedSettings);
+// In case DOMContentLoaded already fired before script executed
+loadSavedSettings();
+
+function rsi(closes, period=14){
+  if(closes.length < period+1) return null;
+  let gains=0, losses=0;
+  for(let i=closes.length-period; i<closes.length; i++){
+    const diff = closes[i] - closes[i-1];
+    if(diff >= 0) gains += diff; else losses -= diff;
+  }
+  const avgGain = gains/period, avgLoss = losses/period;
+  if(avgLoss === 0) return 100;
+  const rs = avgGain/avgLoss;
+  return 100 - (100/(1+rs));
+}
+
+function atr(candles, period=14){
+  if(candles.length < period+1) return null;
+  const trs = [];
+  for(let i=1; i<candles.length; i++){
+    const h=candles[i].high, l=candles[i].low, pc=candles[i-1].close;
+    trs.push(Math.max(h-l, Math.abs(h-pc), Math.abs(l-pc)));
+  }
+  const last = trs.slice(-period);
+  return last.reduce((a,b)=>a+b,0)/last.length;
+}
+
+function fmt(n, decimals){ return n.toFixed(decimals); }
+
+async function fetchAndUpdate(){
+  const key = document.getElementById('apiKey').value.trim();
+  const symbol = document.getElementById('symbol').value;
+  const status = document.getElementById('statusMsg');
+  if(!key){ status.textContent = 'Sila masukkan API key dulu.'; status.className='status err'; return; }
+
+  try{
+    const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=15min&outputsize=60&apikey=${key}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if(data.status === 'error' || !data.values){
+      status.textContent = 'Ralat: ' + (data.message || 'API key/symbol tak valid.');
+      status.className = 'status err';
+      return;
+    }
+
+    // TwelveData returns most-recent-first; reverse to chronological
+    const values = data.values.slice().reverse();
+    const candles = values.map(v => ({
+      close: parseFloat(v.close), high: parseFloat(v.high), low: parseFloat(v.low)
+    }));
+    const closes = candles.map(c=>c.close);
+    const currentPrice = closes[closes.length-1];
+    const decimals = symbol === 'USD/JPY' ? 3 : (symbol === 'XAU/USD' ? 2 : 5);
+
+    const rsiVal = rsi(closes, 14);
+    const atrVal = atr(candles, 14);
+
+    if(rsiVal === null || atrVal === null){
+      status.textContent = 'Data tak cukup, cuba lagi sekejap.';
+      status.className = 'status err';
+      return;
+    }
+
+    let direction, dirClass, entry, sl, tp, zoneLow, zoneHigh, momColor, momText, valClass;
+
+    if(rsiVal >= 55){
+      direction='BUY'; dirClass='buy'; valClass='buy'; momColor='var(--buy)'; momText='Bullish ↑';
+      entry = currentPrice;
+      sl = entry - 1.5*atrVal;
+      tp = entry + 3*atrVal;
+      zoneLow = entry - 1*atrVal; zoneHigh = entry - 0.5*atrVal;
+    } else if(rsiVal <= 45){
+      direction='SELL'; dirClass='sell'; valClass='sl'; momColor='var(--sl)'; momText='Bearish ↓';
+      entry = currentPrice;
+      sl = entry + 1.5*atrVal;
+      tp = entry - 3*atrVal;
+      zoneLow = entry + 0.5*atrVal; zoneHigh = entry + 1*atrVal;
+    } else {
+      direction='WAIT'; dirClass='wait'; valClass='neutral'; momColor='var(--neutral)'; momText='Neutral';
+      entry = currentPrice; sl = null; tp = null; zoneLow = null; zoneHigh = null;
+    }
+
+    document.getElementById('pairLabel').innerHTML = symbol + '<small>Live · 15min</small>';
+    document.getElementById('dirBadge').textContent = direction;
+    document.getElementById('dirBadge').className = 'dir ' + dirClass;
+
+    document.getElementById('entryVal').textContent = fmt(entry, decimals);
+    document.getElementById('entryVal').className = 'value ' + valClass;
+    document.getElementById('slVal').textContent = sl !== null ? fmt(sl, decimals) : 'Tunggu signal';
+    document.getElementById('tpVal').textContent = tp !== null ? fmt(tp, decimals) : 'Tunggu signal';
+
+    document.getElementById('momLabel').innerHTML = `RSI ${fmt(rsiVal,1)} <span style="color:${momColor}">${momText}</span>`;
+    document.getElementById('momFill').style.width = Math.min(100, rsiVal) + '%';
+    document.getElementById('momFill').style.background = momColor;
+
+    document.getElementById('zoneVal').textContent = (zoneLow !== null)
+      ? `${fmt(zoneLow, decimals)} – ${fmt(zoneHigh, decimals)}`
+      : 'Tiada zon buat masa ini';
+
+    status.textContent = 'Data terkini diterima.';
+    status.className = 'status ok';
+    document.getElementById('footerMsg').innerHTML = '<span class="pulse"></span> Live · refresh setiap 30s';
+
+  } catch(e){
+    status.textContent = 'Gagal fetch data: ' + e.message;
+    status.className = 'status err';
+  }
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  saveSettings();
+  fetchAndUpdate();
+  intervalId = setInterval(fetchAndUpdate, 30000);
+  document.getElementById('startBtn').classList.add('hidden');
+  document.getElementById('stopBtn').classList.remove('hidden');
+});
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  clearInterval(intervalId);
+  document.getElementById('startBtn').classList.remove('hidden');
+  document.getElementById('stopBtn').classList.add('hidden');
+  document.getElementById('footerMsg').textContent = 'Live dihentikan';
+});
+
+document.getElementById('clearBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  localStorage.removeItem('signalCardSettings');
+  document.getElementById('apiKey').value = '';
+  document.getElementById('statusMsg').textContent = 'Setting tersimpan dah dipadam.';
+  document.getElementById('statusMsg').className = 'status';
+});
+</script>
+
+</body>
+</html>
